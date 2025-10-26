@@ -1,0 +1,15 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+._*
+**/._*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs & temp
+logs/
+temp/

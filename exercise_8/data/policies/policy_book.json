@@ -1,0 +1,6 @@
+{
+  "liability_cap": "12 months fees",
+  "requires_subprocessors_list": true,
+  "dpa_reference_sccs": true,
+  "security_standards": ["SOC2", "ISO27001"]
+}

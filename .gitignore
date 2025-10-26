@@ -1,0 +1,33 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+.lintenv/
+
+# Node
+node_modules/
+.next/
+.turbo/
+
+# Env files
+.env
+**/.env
+.env.local
+**/.env.local
+
+# macOS
+.DS_Store
+._*
+
+# Exercise specific ignores
+*.zip
+**/reports/*.txt
+!**/reports/.gitkeep
+
+# Exercise copies
+exercise_* copy/
+
+

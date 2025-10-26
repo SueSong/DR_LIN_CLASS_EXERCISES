@@ -1,0 +1,9 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+._*
+**/._*
+
+# Node/Next
+node_modules/
+.next/

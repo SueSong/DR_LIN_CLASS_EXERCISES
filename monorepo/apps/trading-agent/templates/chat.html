@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading Agent - Chat Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .chat-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+        }
+
+        .message.user .message-avatar {
+            background: #007bff;
+        }
+
+        .message.bot .message-avatar {
+            background: #28a745;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            border: 1px solid #e9ecef;
+            color: #333;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            border-color: #007bff;
+        }
+
+        .send-button {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .send-button:hover {
+            background: #0056b3;
+        }
+
+        .send-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            padding: 8px 12px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .quick-action:hover {
+            background: #dee2e6;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 2px;
+        }
+
+        .loading-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: bounce 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🤖 AI Trading Agent</h1>
+            <p>Exercise 5: Stock Trading with AI-Powered Decisions</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connected</span>
+            </div>
+            <div>
+                <span id="toolsCount">6 tools available</span> | 
+                <span id="serverTime">Server: localhost:8001</span>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <div>Welcome to the AI Trading Agent! I can help you with:</div>
+                    <br>
+                    <div>📊 <strong>Stock Quotes</strong> - Get real-time market data</div>
+                    <div>💼 <strong>Portfolio Management</strong> - View your positions</div>
+                    <div>🧠 <strong>AI Recommendations</strong> - Get trading suggestions</div>
+                    <div>🤖 <strong>Auto Trading</strong> - Let AI trade for you automatically</div>
+                    <div>💰 <strong>Manual Trading</strong> - Execute specific buy/sell orders</div>
+                    <div>📄 <strong>Generate Reports</strong> - Daily trading summaries</div>
+                    <br>
+                    <div><strong>Try these commands:</strong></div>
+                    <div>• "Get quotes for AAPL and GOOGL"</div>
+                    <div>• "Show my portfolio"</div>
+                    <div>• "Trade for me" (AI auto-trading)</div>
+                    <div>• "Buy 100 shares of AAPL"</div>
+                    <div>• "Sell 50 GOOGL"</div>
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <div class="quick-actions">
+                <button class="quick-action" onclick="sendQuickMessage('Get quotes for AAPL, GOOGL, MSFT')">📊 Stock Quotes</button>
+                <button class="quick-action" onclick="sendQuickMessage('Show my portfolio')">💼 Portfolio</button>
+                <button class="quick-action" onclick="sendQuickMessage('Get AI trading recommendations')">🧠 AI Advice</button>
+                <button class="quick-action" onclick="sendQuickMessage('Trade for me')">🤖 Auto Trade</button>
+                <button class="quick-action" onclick="sendQuickMessage('Buy 10 shares of AAPL')">💰 Buy Stock</button>
+                <button class="quick-action" onclick="sendQuickMessage('Generate daily report')">📄 Report</button>
+                <button class="quick-action" onclick="sendQuickMessage('Show available tools')">🔧 Tools</button>
+            </div>
+            
+            <div class="loading" id="loadingIndicator">
+                <span>AI is thinking</span>
+                <div class="loading-dots">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <input type="text" class="input-field" id="messageInput" 
+                       placeholder="Ask me about stocks, trading, or portfolio management..." 
+                       onkeypress="handleKeyPress(event)">
+                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001';
+        let isLoading = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServerStatus();
+            setInterval(checkServerStatus, 30000); // Check every 30 seconds
+        });
+
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                document.getElementById('statusDot').style.background = '#28a745';
+                document.getElementById('statusText').textContent = 'Connected';
+                document.getElementById('toolsCount').textContent = `${data.tools_registered} tools available`;
+            } catch (error) {
+                document.getElementById('statusDot').style.background = '#dc3545';
+                document.getElementById('statusText').textContent = 'Disconnected';
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('messageInput').value = message;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Show loading
+            setLoading(true);
+
+            try {
+                // Process the message and call appropriate API
+                const response = await processMessage(message);
+                addMessage(response, 'bot');
+            } catch (error) {
+                addMessage(`❌ Error: ${error.message}`, 'bot');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function processMessage(message) {
+            const lowerMessage = message.toLowerCase();
+
+            // Stock quotes
+            if (lowerMessage.includes('quote') || lowerMessage.includes('price')) {
+                const symbols = extractSymbols(message);
+                if (symbols.length > 0) {
+                    return await getStockQuotes(symbols);
+                } else {
+                    return "Please specify stock symbols. Example: 'Get quotes for AAPL, GOOGL'";
+                }
+            }
+
+            // Portfolio
+            if (lowerMessage.includes('portfolio') || lowerMessage.includes('positions')) {
+                return await getPortfolio();
+            }
+
+            // Tools
+            if (lowerMessage.includes('tools') || lowerMessage.includes('available')) {
+                return await getTools();
+            }
+
+            // AI Recommendations
+            if (lowerMessage.includes('recommend') || lowerMessage.includes('advice') || lowerMessage.includes('ai')) {
+                return await getRecommendations();
+            }
+
+            // Auto Trading
+            if (lowerMessage.includes('trade for me') || lowerMessage.includes('auto trade') || lowerMessage.includes('execute trades')) {
+                return await executeAutoTrade();
+            }
+
+            // Manual Trading
+            if (lowerMessage.includes('buy') || lowerMessage.includes('sell')) {
+                return await executeManualTrade(message);
+            }
+
+            // Reports
+            if (lowerMessage.includes('report') || lowerMessage.includes('summary')) {
+                return await generateReport();
+            }
+
+            // Health check
+            if (lowerMessage.includes('status') || lowerMessage.includes('health')) {
+                return await getHealth();
+            }
+
+            // Default response
+            return `I can help you with:
+📊 Stock quotes: "Get quotes for AAPL, GOOGL"
+💼 Portfolio: "Show my portfolio"  
+🧠 AI advice: "Get trading recommendations"
+🤖 Auto trading: "Trade for me" or "Execute trades automatically"
+💰 Manual trading: "Buy 100 shares of AAPL" or "Sell GOOGL"
+📄 Reports: "Generate daily report"
+🔧 Tools: "Show available tools"
+
+What would you like to do?`;
+        }
+
+        function extractSymbols(message) {
+            const symbolRegex = /\b[A-Z]{1,5}\b/g;
+            const matches = message.toUpperCase().match(symbolRegex);
+            return matches ? [...new Set(matches)] : [];
+        }
+
+        async function getStockQuotes(symbols) {
+            try {
+                const response = await fetch(`${API_BASE}/quotes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbols: symbols })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.quotes) {
+                    let result = `📊 **Stock Quotes:**\n\n`;
+                    data.quotes.forEach(quote => {
+                        const change = quote.change || 0;
+                        const changePercent = quote.change_percent || 0;
+                        const arrow = change >= 0 ? '📈' : '📉';
+                        result += `${arrow} **${quote.symbol}**: $${quote.price}\n`;
+                        result += `   Change: ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent.toFixed(2)}%)\n\n`;
+                    });
+                    return result;
+                } else {
+                    return `❌ Failed to get quotes: ${data.error_message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                return `❌ Error fetching quotes: ${error.message}`;
+            }
+        }
+
+        async function getPortfolio() {
+            try {
+                const response = await fetch(`${API_BASE}/portfolio`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    let result = `💼 **Portfolio Summary:**\n\n`;
+                    result += `💰 Cash Balance: $${data.cash_balance.toLocaleString()}\n`;
+                    result += `📈 Total Value: $${data.total_value.toLocaleString()}\n\n`;
+                    
+                    if (data.positions && data.positions.length > 0) {
+                        result += `**Positions:**\n`;
+                        data.positions.forEach(pos => {
+                            const pnl = pos.unrealized_pnl || 0;
+                            const pnlIcon = pnl >= 0 ? '📈' : '📉';
+                            result += `${pnlIcon} ${pos.symbol}: ${pos.shares} shares @ $${pos.current_price}\n`;
+                            result += `   Value: $${pos.market_value.toLocaleString()} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}\n\n`;
+                        });
+                    } else {
+                        result += `No positions currently held.\n`;
+                    }
+                    
+                    return result;
+                } else {
+                    return `❌ Failed to get portfolio: ${data.error_message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                return `❌ Error fetching portfolio: ${error.message}`;
+            }
+        }
+
+        async function getTools() {
+            try {
+                const response = await fetch(`${API_BASE}/tools`);
+                const data = await response.json();
+                
+                let result = `🔧 **Available Tools:**\n\n`;
+                data.tools.forEach(tool => {
+                    const successRate = (tool.success_rate * 100).toFixed(1);
+                    result += `• **${tool.name}**: ${tool.description}\n`;
+                    result += `  Category: ${tool.category} | Permission: ${tool.permission_level}\n`;
+                    result += `  Calls: ${tool.call_count} | Success: ${successRate}%\n\n`;
+                });
+                
+                return result;
+            } catch (error) {
+                return `❌ Error fetching tools: ${error.message}`;
+            }
+        }
+
+        async function getRecommendations() {
+            return `🧠 **AI Trading Recommendations:**
+
+The AI recommendation system is ready but requires:
+1. Market data analysis
+2. Portfolio evaluation  
+3. LLM integration (OpenAI/Anthropic API key)
+
+For now, you can:
+📊 Get stock quotes to analyze market conditions
+💼 Check your portfolio for rebalancing opportunities
+📄 Generate reports to track performance
+
+Would you like me to get current market data first?`;
+        }
+
+        async function generateReport() {
+            try {
+                const response = await fetch(`${API_BASE}/reports/daily`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        report_type: 'daily',
+                        user_id: 'default_trader'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    let result = `📄 **Daily Report Generated:**\n\n`;
+                    result += `📁 File: ${data.file_path}\n`;
+                    result += `📊 Transactions: ${data.report_summary.transactions_count}\n`;
+                    result += `💰 Portfolio Value: $${data.report_summary.portfolio_value.toLocaleString()}\n`;
+                    result += `📈 Daily Return: ${data.report_summary.daily_return.toFixed(2)}%\n\n`;
+                    result += `Report saved successfully!`;
+                    return result;
+                } else {
+                    return `❌ Failed to generate report: ${data.error_message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                return `❌ Error generating report: ${error.message}`;
+            }
+        }
+
+        async function getHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                let result = `🏥 **System Status:**\n\n`;
+                result += `✅ Status: ${data.status}\n`;
+                result += `🗄️ Database: ${data.database}\n`;
+                result += `🔧 Tools: ${data.tools_registered} registered\n`;
+                result += `🧠 LLM: ${data.llm_available ? 'Available' : 'Mock mode'}\n\n`;
+                result += `All systems operational!`;
+                
+                return result;
+            } catch (error) {
+                return `❌ Error checking health: ${error.message}`;
+            }
+        }
+
+        async function executeAutoTrade() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/auto-trade?user_id=default_trader&risk_tolerance=moderate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    let result = `🤖 **AI Auto-Trading Executed:**\n\n`;
+                    
+                    if (data.trades && data.trades.length > 0) {
+                        result += `**Trades Executed:**\n`;
+                        data.trades.forEach(trade => {
+                            const emoji = trade.action === 'BUY' ? '📈' : '📉';
+                            result += `${emoji} ${trade.action} ${trade.shares} shares of ${trade.symbol}\n`;
+                            result += `   Price: $${trade.price} | Total: $${trade.total_amount}\n\n`;
+                        });
+                    }
+                    
+                    result += `💰 **Portfolio Update:**\n`;
+                    result += `Cash Balance: $${data.portfolio_summary.cash_balance.toLocaleString()}\n`;
+                    result += `Total Value: $${data.portfolio_summary.total_value.toLocaleString()}\n\n`;
+                    
+                    if (data.ai_reasoning) {
+                        result += `🧠 **AI Reasoning:**\n${data.ai_reasoning}\n\n`;
+                    }
+                    
+                    result += `✅ Auto-trading completed successfully!`;
+                    return result;
+                } else {
+                    return `❌ Auto-trading failed: ${data.detail || data.error_message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                return `❌ Error executing auto-trade: ${error.message}`;
+            }
+        }
+
+        async function executeManualTrade(message) {
+            try {
+                // Parse the trading command
+                const tradeInfo = parseTradeCommand(message);
+                if (!tradeInfo) {
+                    return `❌ Could not parse trade command. Try: "Buy 100 shares of AAPL" or "Sell 50 GOOGL"`;
+                }
+
+                const response = await fetch(`${API_BASE}/trades`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'default_trader',
+                        symbol: tradeInfo.symbol,
+                        action: tradeInfo.action,
+                        quantity: tradeInfo.quantity,
+                        amount: tradeInfo.amount
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    let result = `🎉 **Trade Executed Successfully!**\n\n`;
+                    const emoji = data.action === 'BUY' ? '📈' : '📉';
+                    result += `${emoji} **${data.action}** ${data.shares} shares of **${data.symbol}**\n`;
+                    result += `💵 **Price**: $${parseFloat(data.price).toFixed(2)} per share\n`;
+                    result += `💸 **Total Amount**: $${parseFloat(data.total_amount).toLocaleString()}\n`;
+                    result += `💰 **Remaining Cash**: $${parseFloat(data.remaining_cash).toLocaleString()}\n`;
+                    result += `🆔 **Transaction ID**: ${data.transaction_id}\n\n`;
+                    result += `✅ **Status**: Trade completed successfully in demo mode!\n`;
+                    result += `🎭 This demonstrates the full trading workflow with mock data.`;
+                    return result;
+                } else {
+                    // Handle both API errors and tool errors
+                    const errorMsg = data.detail || data.error_message || 'Unknown error';
+                    let result = `❌ **Trade Failed:**\n\n`;
+                    result += `**Error:** ${errorMsg}\n\n`;
+                    
+                    if (errorMsg.includes('Database connection not available')) {
+                        result += `**Note:** This is a demo system. In production:\n`;
+                        result += `• Database would be properly configured\n`;
+                        result += `• Real stock prices would be used\n`;
+                        result += `• Actual trades would be executed\n\n`;
+                        result += `**For now, you can:**\n`;
+                        result += `• Get stock quotes\n`;
+                        result += `• View portfolio (mock data)\n`;
+                        result += `• Get AI recommendations\n`;
+                        result += `• Generate reports`;
+                    }
+                    
+                    return result;
+                }
+            } catch (error) {
+                return `❌ Error executing trade: ${error.message}`;
+            }
+        }
+
+        function parseTradeCommand(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            // Determine action
+            let action = null;
+            if (lowerMessage.includes('buy')) action = 'BUY';
+            else if (lowerMessage.includes('sell')) action = 'SELL';
+            else return null;
+            
+            // Extract symbol
+            const symbolMatch = message.match(/\b([A-Z]{1,5})\b/);
+            if (!symbolMatch) return null;
+            const symbol = symbolMatch[1];
+            
+            // Extract quantity or amount
+            let quantity = null;
+            let amount = null;
+            
+            // Look for quantity (shares)
+            const quantityMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:shares?|of)?/i);
+            if (quantityMatch) {
+                quantity = parseFloat(quantityMatch[1]);
+            }
+            
+            // Look for dollar amount
+            const amountMatch = message.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+            if (amountMatch) {
+                amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+            }
+            
+            if (!quantity && !amount) {
+                // Default to 1 share if no quantity specified
+                quantity = 1;
+            }
+            
+            return { action, symbol, quantity, amount };
+        }
+
+        function addMessage(content, type) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'user' ? 'You' : '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Format content with basic markdown-like formatting
+            const formattedContent = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            
+            contentDiv.innerHTML = formattedContent;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString();
+            
+            contentDiv.appendChild(timeDiv);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const sendButton = document.getElementById('sendButton');
+            
+            if (loading) {
+                loadingIndicator.style.display = 'flex';
+                sendButton.disabled = true;
+            } else {
+                loadingIndicator.style.display = 'none';
+                sendButton.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

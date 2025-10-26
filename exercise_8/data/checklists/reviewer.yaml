@@ -1,0 +1,11 @@
+checks:
+  - name: policy-mapped
+    description: Clause maps to a relevant policy
+  - name: numbers-consistent
+    description: Caps, terms, dates are consistent
+  - name: rewrite-intent
+    description: Rewrite preserves intent & reduces risk
+  - name: tone
+    description: Legal register and tone are appropriate
+  - name: evidence-cited
+    description: Policy/precedent references included

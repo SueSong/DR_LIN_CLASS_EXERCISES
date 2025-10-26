@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: exercise8-backend
+    ports:
+      - "8004:8000"
+    environment:
+      - CORS_ORIGINS=["http://localhost:3004"]
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: exercise8-frontend
+    ports:
+      - "3004:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8004
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next

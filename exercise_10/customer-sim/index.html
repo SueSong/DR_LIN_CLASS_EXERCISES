@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Simulator - AI Call Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+
+        .status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+
+        .status.calling {
+            background: #fef3cd;
+            color: #856404;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-start {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-send {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-send:hover:not(:disabled) {
+            background: #38a169;
+        }
+
+        .btn-end {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-end:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        .transcript {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .transcript-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .transcript-item.customer {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .transcript-item.agent {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+
+        .transcript-item.system {
+            background: #fff3e0;
+            color: #e65100;
+            font-style: italic;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+
+        .quick-messages {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .quick-message {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-message:hover {
+            background: #e0e0e0;
+            border-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 Customer Simulator</h1>
+        <p class="subtitle">Test the AI Call Center Assistant</p>
+
+        <div id="status" class="status disconnected">
+            ⚫ Disconnected
+        </div>
+
+        <div class="form-group">
+            <label for="wsUrl">WebSocket URL</label>
+            <input type="text" id="wsUrl" value="ws://localhost:8000/ws/call/" placeholder="ws://localhost:8000/ws/call/">
+        </div>
+
+        <div class="form-group">
+            <label for="customerName">Your Name</label>
+            <input type="text" id="customerName" value="John Doe" placeholder="Enter your name">
+        </div>
+
+        <div class="form-group">
+            <label for="customerMessage">Message to Send</label>
+            <textarea id="customerMessage" placeholder="Hi, I need help with my order..."></textarea>
+            
+            <div class="quick-messages">
+                <div class="quick-message" onclick="setMessage('Hi, I need help with order #78901')">Order inquiry</div>
+                <div class="quick-message" onclick="setMessage('I want to request a refund')">Refund request</div>
+                <div class="quick-message" onclick="setMessage('My account is locked')">Account issue</div>
+                <div class="quick-message" onclick="setMessage('How do I upgrade my plan?')">Upgrade question</div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button id="startBtn" class="btn-start" onclick="startCall()">📞 Start Call</button>
+            <button id="sendBtn" class="btn-send" onclick="sendMessage()" disabled>💬 Send Message</button>
+            <button id="endBtn" class="btn-end" onclick="endCall()" disabled>📴 End Call</button>
+        </div>
+
+        <div id="transcript" class="transcript">
+            <div class="empty-state">Start a call to see the conversation...</div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let callId = null;
+
+        function generateCallId() {
+            return 'call_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
+
+        function updateStatus(status, text) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+
+        function addTranscript(speaker, text) {
+            const transcriptEl = document.getElementById('transcript');
+            
+            // Remove empty state if exists
+            if (transcriptEl.querySelector('.empty-state')) {
+                transcriptEl.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = `transcript-item ${speaker}`;
+            
+            const time = new Date().toLocaleTimeString();
+            item.innerHTML = `<strong>[${time}] ${speaker.toUpperCase()}:</strong> ${text}`;
+            
+            transcriptEl.appendChild(item);
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        }
+
+        function setMessage(text) {
+            document.getElementById('customerMessage').value = text;
+        }
+
+        function startCall() {
+            const wsUrl = document.getElementById('wsUrl').value;
+            callId = generateCallId();
+            
+            try {
+                // Connect WebSocket
+                ws = new WebSocket(wsUrl + callId);
+
+                ws.onopen = () => {
+                    console.log('✅ WebSocket connected');
+                    updateStatus('connected', '🟢 Connected - Ready to call');
+                    
+                    // Send start_call message
+                    const customerName = document.getElementById('customerName').value;
+                    ws.send(JSON.stringify({
+                        type: 'start_call',
+                        call_id: callId,
+                        customer_name: customerName,
+                        timestamp: new Date().toISOString()
+                    }));
+
+                    addTranscript('system', `Call started (ID: ${callId})`);
+                    
+                    // Update button states
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('sendBtn').disabled = false;
+                    document.getElementById('endBtn').disabled = false;
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('📨 Received:', data);
+
+                        if (data.type === 'call_started') {
+                            updateStatus('calling', '📞 In call...');
+                            addTranscript('system', 'Agent connected');
+                        }
+                        else if (data.type === 'transcript') {
+                            addTranscript(data.speaker, data.text);
+                        }
+                        else if (data.type === 'call_ended') {
+                            addTranscript('system', 'Call ended by agent');
+                            endCall();
+                        }
+                        else if (data.type === 'audio_received') {
+                            console.log(`Audio received: ${data.size} bytes`);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                    updateStatus('disconnected', '⚫ Connection error');
+                    addTranscript('system', 'Connection error occurred');
+                };
+
+                ws.onclose = () => {
+                    console.log('👋 WebSocket closed');
+                    updateStatus('disconnected', '⚫ Disconnected');
+                    
+                    // Reset button states
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('sendBtn').disabled = true;
+                    document.getElementById('endBtn').disabled = true;
+                };
+
+            } catch (error) {
+                console.error('Error starting call:', error);
+                updateStatus('disconnected', '⚫ Failed to connect');
+                addTranscript('system', 'Failed to start call: ' + error.message);
+            }
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Not connected. Please start a call first.');
+                return;
+            }
+
+            const message = document.getElementById('customerMessage').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            // Send transcript message
+            ws.send(JSON.stringify({
+                type: 'transcript',
+                speaker: 'customer',
+                text: message,
+                timestamp: new Date().toISOString()
+            }));
+
+            addTranscript('customer', message);
+            
+            // Clear input
+            document.getElementById('customerMessage').value = '';
+        }
+
+        function endCall() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Send end_call message
+                ws.send(JSON.stringify({
+                    type: 'end_call',
+                    call_id: callId,
+                    timestamp: new Date().toISOString()
+                }));
+
+                addTranscript('system', 'Ending call...');
+                
+                // Close WebSocket
+                ws.close();
+            }
+
+            // Reset states
+            ws = null;
+            callId = null;
+            updateStatus('disconnected', '⚫ Disconnected');
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('endBtn').disabled = true;
+        }
+
+        // Allow Enter key to send message
+        document.getElementById('customerMessage').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
+
