@@ -1,0 +1,3 @@
+# This directory stores daily CSV billing reports
+# Reports are generated nightly via generate_nightly_report.py
+

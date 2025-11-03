@@ -1,0 +1,209 @@
+name: CD Pipeline (Staging Deploy)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  STAGING_URL: ${{ secrets.STAGING_URL || 'https://staging.example.com' }}
+  DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}
+
+jobs:
+  # Build Docker images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      backend-image: ${{ steps.backend-image.outputs.image }}
+      frontend-image: ${{ steps.frontend-image.outputs.image }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract version tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build and push backend image
+        id: backend-image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/backend:${{ steps.tag.outputs.tag }}
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/backend:staging-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=metadata,output=image
+      
+      - name: Build and push frontend image
+        id: frontend-image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/frontend:${{ steps.tag.outputs.tag }}
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/frontend:staging-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=metadata,output=image
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: staging
+      url: ${{ env.STAGING_URL }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Extract version tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Update docker-compose for staging
+        run: |
+          # Update docker-compose.yml with new image tags
+          sed -i "s|image:.*backend.*|image: ${{ needs.build.outputs.backend-image }}|g" docker-compose.staging.yml || echo "docker-compose.staging.yml not found, skipping"
+          sed -i "s|image:.*frontend.*|image: ${{ needs.build.outputs.frontend-image }}|g" docker-compose.staging.yml || echo "docker-compose.staging.yml not found, skipping"
+          # Or create a staging-specific compose file
+          cat > docker-compose.staging.yml << EOF
+          version: '3.8'
+          services:
+            backend:
+              image: ${{ needs.build.outputs.backend-image }}
+              environment:
+                OPENAI_API_KEY: \$OPENAI_API_KEY
+              ports:
+                - "8011:8011"
+            frontend:
+              image: ${{ needs.build.outputs.frontend-image }}
+              ports:
+                - "3082:3082"
+              depends_on:
+                - backend
+          EOF
+      
+      - name: Deploy to staging (example: SSH deployment)
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Backend image: ${{ needs.build.outputs.backend-image }}"
+          echo "Frontend image: ${{ needs.build.outputs.frontend-image }}"
+          echo "Tag: ${{ steps.tag.outputs.tag }}"
+          echo ""
+          echo "⚠️  This is a placeholder. Configure your actual deployment method:"
+          echo "   - SSH into staging server and run docker-compose up"
+          echo "   - Use Kubernetes/kubectl"
+          echo "   - Use cloud deployment tools (ECS, Cloud Run, etc.)"
+          echo "   - Use infrastructure-as-code (Terraform, Pulumi)"
+          echo ""
+          echo "Example deployment command:"
+          echo "  ssh staging-server 'cd /app && docker-compose -f docker-compose.staging.yml pull && docker-compose -f docker-compose.staging.yml up -d'"
+          echo ""
+          echo "For now, deployment is simulated. Update this step with your actual deployment process."
+        # Uncomment and configure when ready:
+        # env:
+        #   STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        #   STAGING_HOST: ${{ secrets.STAGING_HOST }}
+        # run: |
+        #   echo "$STAGING_SSH_KEY" > /tmp/staging_key
+        #   chmod 600 /tmp/staging_key
+        #   ssh -i /tmp/staging_key $STAGING_HOST 'cd /app && docker-compose pull && docker-compose up -d'
+
+  # Smoke tests after deployment
+  smoke-tests:
+    name: Staging Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment:
+      name: staging
+    
+    steps:
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for staging services to be ready..."
+          sleep 10
+      
+      - name: Test backend health
+        run: |
+          echo "Testing backend health endpoint..."
+          curl -f ${{ env.STAGING_URL }}/api/healthz || exit 1
+          curl -f ${{ env.STAGING_URL }}/api/readyz || exit 1
+          echo "✅ Backend health checks passed"
+      
+      - name: Test frontend accessibility
+        run: |
+          echo "Testing frontend is accessible..."
+          curl -f ${{ env.STAGING_URL }} || exit 1
+          echo "✅ Frontend is accessible"
+      
+      - name: Test API endpoints
+        run: |
+          echo "Running smoke tests on staging API..."
+          # Test basic endpoints
+          curl -f ${{ env.STAGING_URL }}/api/healthz || exit 1
+          echo "✅ API smoke tests passed"
+      
+      - name: Run quick E2E smoke test
+        run: |
+          echo "Running quick E2E smoke test..."
+          echo "⚠️  This is a placeholder. Add your quick E2E smoke test here."
+          echo "Example:"
+          echo "  npm run test:e2e -- --grep 'smoke'"
+          echo "✅ Smoke tests completed (placeholder)"
+
+  # CD Success
+  cd-success:
+    name: CD Success
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging, smoke-tests]
+    if: always()
+    
+    steps:
+      - name: Check deployment success
+        run: |
+          if [ "${{ needs.deploy-staging.result }}" != "success" ] || \
+             [ "${{ needs.smoke-tests.result }}" != "success" ]; then
+            echo "❌ Deployment or smoke tests failed. Check logs."
+            exit 1
+          fi
+          echo "✅ Staging deployment successful!"
+          echo "🌐 Staging URL: ${{ env.STAGING_URL }}"
+          echo "📦 Version: ${{ github.ref_name }}"
+

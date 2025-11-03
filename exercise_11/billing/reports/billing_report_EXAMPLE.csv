@@ -1,0 +1,7 @@
+turn_id,session_id,timestamp,input_tokens,output_tokens,total_tokens,cost_usd,model_mode,was_over_budget
+turn_abc123,sess_xyz789,2025-11-02T10:30:15.123456,125,487,612,0.000042,full,false
+turn_def456,sess_xyz789,2025-11-02T10:32:22.654321,98,342,440,0.000027,full,false
+turn_ghi789,sess_xyz789,2025-11-02T10:35:10.987654,110,156,266,0.000012,lite,true
+turn_jkl012,sess_abc456,2025-11-02T11:15:33.456789,142,523,665,0.000046,full,false
+turn_mno345,sess_abc456,2025-11-02T11:18:45.789012,95,178,273,0.000013,lite,true
+

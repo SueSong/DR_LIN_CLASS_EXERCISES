@@ -1,0 +1,33 @@
+{
+  "name": "exercise-11-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3082",
+    "build": "next build",
+    "start": "next start -p 3082",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:update": "playwright test --update-snapshots",
+    "test:e2e:report": "playwright test && playwright show-report",
+    "test:e2e:headed:report": "playwright test --headed && playwright show-report"
+  },
+  "dependencies": {
+    "axios": "1.6.7",
+    "lucide-react": "0.292.0",
+    "next": "14.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/node": "24.9.2",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "18.2.18",
+    "autoprefixer": "10.4.17",
+    "postcss": "8.4.33",
+    "tailwindcss": "3.4.1",
+    "typescript": "5.9.3"
+  }
+}

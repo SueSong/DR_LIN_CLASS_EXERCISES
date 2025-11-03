@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "last_updated": "2024-01-15",
+  "knowledge_base": [
+    {
+      "id": "kb_001",
+      "title": "Positive Reinforcement Techniques",
+      "content": "Positive reinforcement involves rewarding desired behaviors to encourage their repetition. Effective strategies include: 1) Immediate praise when your child demonstrates good behavior, 2) Using specific compliments like 'I noticed you shared your toy - that was very kind!', 3) Creating a reward chart for consistent positive behaviors, 4) Offering small privileges for meeting expectations. Remember to be consistent and genuine in your praise.",
+      "category": "behavior_management",
+      "tags": ["reinforcement", "praise", "rewards", "behavior", "positive"],
+      "source": "Child Development Institute - Positive Parenting",
+      "source_url": "https://childdevelopmentinfo.com/parenting/positive-reinforcement/",
+      "keywords": ["positive reinforcement", "praise", "reward", "good behavior", "compliment"]
+    },
+    {
+      "id": "kb_002",
+      "title": "Bedtime Routine Best Practices",
+      "content": "Establishing a consistent bedtime routine helps children transition to sleep more easily. Effective routines include: 1) Starting the routine 30-60 minutes before desired sleep time, 2) Following the same sequence of activities each night (e.g., bath, story, lights out), 3) Creating a calm environment by dimming lights and reducing screen time, 4) Setting clear expectations about staying in bed. Consistency is key - stick to the same routine even on weekends.",
+      "category": "sleep_routines",
+      "tags": ["bedtime", "sleep", "routine", "bedtime routine", "sleep habits"],
+      "source": "American Academy of Pediatrics - Healthy Sleep Habits",
+      "source_url": "https://www.healthychildren.org/English/healthy-living/sleep/Pages/healthy-sleep-habits.aspx",
+      "keywords": ["bedtime", "sleep routine", "going to bed", "nighttime", "bedtime routine"]
+    },
+    {
+      "id": "kb_003",
+      "title": "Managing Screen Time Effectively",
+      "content": "Balancing screen time for children requires clear boundaries and alternatives. Recommendations include: 1) Setting time limits appropriate for your child's age (AAP suggests no screens for children under 18 months, 1 hour for 2-5 years), 2) Creating screen-free zones (bedrooms, mealtimes), 3) Co-viewing content to make it interactive and educational, 4) Offering engaging alternatives like outdoor play, reading, or creative activities. Model healthy screen habits yourself.",
+      "category": "screen_time",
+      "tags": ["screen time", "technology", "digital", "tablets", "phones", "tv"],
+      "source": "American Academy of Pediatrics - Media Guidelines",
+      "source_url": "https://www.aap.org/en-us/about-the-aap/aap-press-room/pages/american-academy-of-pediatrics-announces-new-recommendations-for-childrens-media-use.aspx",
+      "keywords": ["screen time", "tablet", "phone", "tv", "digital", "device", "ipad"]
+    },
+    {
+      "id": "kb_004",
+      "title": "Handling Sibling Conflicts",
+      "content": "Sibling conflicts are normal but can be managed constructively. Effective approaches include: 1) Teaching conflict resolution skills like taking turns and expressing feelings with words, 2) Avoiding comparisons and labeling children, 3) Setting clear family rules about respect and physical boundaries, 4) Giving each child individual attention to reduce competition, 5) Allowing children to resolve minor disputes themselves when safe. Focus on teaching skills rather than just stopping the conflict.",
+      "category": "sibling_relationships",
+      "tags": ["siblings", "conflict", "fighting", "sibling rivalry", "brothers", "sisters"],
+      "source": "Zero to Three - Sibling Relationships",
+      "source_url": "https://www.zerotothree.org/resources/series/supporting-sibling-relationships",
+      "keywords": ["sibling", "brother", "sister", "fighting", "conflict", "siblings fighting"]
+    },
+    {
+      "id": "kb_005",
+      "title": "Mealtime Strategies for Picky Eaters",
+      "content": "Encouraging healthy eating habits with picky eaters requires patience and creativity. Try these strategies: 1) Offer new foods multiple times without pressure - it can take 10+ exposures, 2) Serve familiar foods alongside new options, 3) Make food fun with creative presentations and involve children in meal prep, 4) Avoid power struggles - respect when a child says they're full, 5) Model healthy eating yourself. Remember that appetites vary, and forcing food can create negative associations.",
+      "category": "nutrition",
+      "tags": ["eating", "food", "mealtime", "picky eater", "nutrition", "meals"],
+      "source": "American Academy of Pediatrics - Feeding & Nutrition",
+      "source_url": "https://www.healthychildren.org/English/ages-stages/toddler/nutrition/Pages/default.aspx",
+      "keywords": ["eating", "food", "picky eater", "mealtime", "wont eat", "refuses food"]
+    },
+    {
+      "id": "kb_006",
+      "title": "Building Emotional Intelligence",
+      "content": "Helping children understand and manage emotions builds lifelong skills. Key practices include: 1) Validating feelings by naming emotions ('I see you're feeling frustrated'), 2) Teaching emotion words beyond happy/sad (disappointed, excited, worried), 3) Modeling emotional regulation by showing how you handle your own feelings, 4) Creating a safe space for emotional expression without judgment, 5) Reading books that explore different emotions. Emotional intelligence helps children navigate relationships and challenges.",
+      "category": "emotional_development",
+      "tags": ["emotions", "feelings", "emotional intelligence", "empathy", "emotional development"],
+      "source": "Yale Center for Emotional Intelligence",
+      "source_url": "https://www.ycei.org/",
+      "keywords": ["emotion", "feeling", "angry", "sad", "frustrated", "emotional", "feelings"]
+    },
+    {
+      "id": "kb_007",
+      "title": "Encouraging Independence",
+      "content": "Fostering independence builds confidence and life skills. Effective approaches include: 1) Offering choices within reasonable limits ('red shirt or blue shirt?'), 2) Breaking tasks into small, manageable steps, 3) Allowing natural consequences when safe (forgetting a toy means no toy on that trip), 4) Teaching self-help skills appropriate for age (dressing, cleaning up), 5) Being patient with mistakes as learning opportunities. Gradually increase responsibilities as children demonstrate readiness.",
+      "category": "independence",
+      "tags": ["independence", "autonomy", "self-help", "choices", "responsibility"],
+      "source": "Zero to Three - Building Independence",
+      "source_url": "https://www.zerotothree.org/resources/guides/how-to-help-your-child-develop-independence",
+      "keywords": ["independence", "independent", "do it myself", "choices", "help themselves"]
+    },
+    {
+      "id": "kb_008",
+      "title": "Managing Tantrums and Meltdowns",
+      "content": "Tantrums are a normal part of development, especially in toddlers. When they occur: 1) Stay calm and ensure safety - remove dangerous objects if needed, 2) Avoid giving in to demands - this teaches that tantrums work, 3) Acknowledge feelings without rewarding the behavior ('I see you're upset, but we can't...'), 4) Use distraction or redirection when possible, 5) After the tantrum, reconnect and help your child calm down. Consistent responses help children learn better ways to express frustration over time.",
+      "category": "behavior_management",
+      "tags": ["tantrum", "meltdown", "tantrums", "outburst", "behavior"],
+      "source": "Mayo Clinic - Toddler Tantrums",
+      "source_url": "https://www.mayoclinic.org/healthy-lifestyle/infant-and-toddler-health/in-depth/tantrum/art-20047845",
+      "keywords": ["tantrum", "meltdown", "crying", "screaming", "outburst", "hysterical"]
+    },
+    {
+      "id": "kb_009",
+      "title": "Homework and Learning Support",
+      "content": "Supporting children with homework requires balance between help and independence. Strategies include: 1) Creating a consistent homework routine and dedicated space, 2) Being available for questions without doing the work for them, 3) Breaking large assignments into smaller tasks, 4) Offering encouragement and focusing on effort rather than perfection, 5) Communicating with teachers if homework consistently causes stress. The goal is to build study skills, not just complete assignments.",
+      "category": "academic_support",
+      "tags": ["homework", "learning", "school", "study", "academic"],
+      "source": "National Education Association - Homework Tips",
+      "source_url": "https://www.nea.org/professional-excellence/student-engagement/tools-tips/homework-tips-parents",
+      "keywords": ["homework", "school work", "studying", "learning", "assignments"]
+    },
+    {
+      "id": "kb_010",
+      "title": "Building Self-Esteem and Confidence",
+      "content": "Healthy self-esteem comes from feeling valued and capable. Help build it by: 1) Showing unconditional love and acceptance, 2) Celebrating effort and progress, not just achievements, 3) Encouraging appropriate risk-taking and learning from mistakes, 4) Avoiding excessive praise that isn't earned - children can sense insincerity, 5) Giving responsibilities that match their abilities. Children with healthy self-esteem are more resilient and willing to try new things.",
+      "category": "emotional_development",
+      "tags": ["self-esteem", "confidence", "self-confidence", "self-worth"],
+      "source": "American Psychological Association - Building Resilience",
+      "source_url": "https://www.apa.org/topics/resilience",
+      "keywords": ["confidence", "self-esteem", "self-confidence", "feeling good about themselves"]
+    }
+  ],
+  "metadata": {
+    "total_entries": 10,
+    "categories": [
+      "behavior_management",
+      "sleep_routines",
+      "screen_time",
+      "sibling_relationships",
+      "nutrition",
+      "emotional_development",
+      "independence",
+      "academic_support"
+    ]
+  }
+}
+

@@ -1,0 +1,57 @@
+{
+  "dashboard": {
+    "title": "Child Growth Assistant - Classification Dashboard",
+    "description": "Monitor safety classifications and model responses",
+    "panels": [
+      {
+        "id": "guard_classifications",
+        "title": "Guard Classifications",
+        "type": "pie_chart",
+        "targets": [
+          {
+            "query": "guard.classification",
+            "groupBy": ["SAFE", "BLOCKED", "ESCALATE"],
+            "description": "Distribution of safety guard classifications"
+          }
+        ]
+      },
+      {
+        "id": "blocked_categories",
+        "title": "Blocked Request Categories",
+        "type": "bar_chart",
+        "targets": [
+          {
+            "query": "guard.primary_category",
+            "filter": "guard.classification=BLOCKED",
+            "description": "Categories of blocked requests"
+          }
+        ]
+      },
+      {
+        "id": "model_classifications",
+        "title": "Model Response Classifications",
+        "type": "pie_chart",
+        "targets": [
+          {
+            "query": "model.classification",
+            "groupBy": ["SAFE", "SAFE_FALLBACK", "BLOCKED", "ESCALATE"],
+            "description": "Distribution of model response classifications"
+          }
+        ]
+      },
+      {
+        "id": "citation_rate",
+        "title": "Citation Rate",
+        "type": "single_stat",
+        "targets": [
+          {
+            "query": "model.has_citations",
+            "aggregation": "rate",
+            "description": "Percentage of responses with citations"
+          }
+        ]
+      }
+    ]
+  }
+}
+

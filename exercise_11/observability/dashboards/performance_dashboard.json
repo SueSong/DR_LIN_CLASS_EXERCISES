@@ -1,0 +1,91 @@
+{
+  "dashboard": {
+    "title": "Child Growth Assistant - Performance Dashboard",
+    "description": "Monitor system performance metrics and SLO compliance",
+    "panels": [
+      {
+        "id": "p95_compliance",
+        "title": "P95 Latency SLO Compliance",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "http.server.duration",
+            "aggregation": "p95",
+            "threshold": 2500,
+            "description": "P95 latency vs 2.5s SLO threshold",
+            "alert": {
+              "enabled": true,
+              "condition": "p95 > 2500",
+              "message": "P95 latency exceeds 2.5s threshold"
+            }
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (ms)",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "error_rate",
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "http.server.request_count",
+            "filter": "status_code >= 500",
+            "aggregation": "rate",
+            "threshold": 0.01,
+            "description": "Error rate vs 1% SLO threshold",
+            "alert": {
+              "enabled": true,
+              "condition": "rate > 0.01",
+              "message": "Error rate exceeds 1% threshold"
+            }
+          }
+        ],
+        "yAxis": {
+          "label": "Error Rate (%)",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "throughput",
+        "title": "Request Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "http.server.request_count",
+            "aggregation": "rate",
+            "description": "Requests per second"
+          }
+        ],
+        "yAxis": {
+          "label": "Requests/sec",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "retrieval_quality",
+        "title": "RAG Retrieval Quality",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "retrieval.top_relevance_score",
+            "aggregation": "avg",
+            "description": "Average relevance score of retrieved entries"
+          },
+          {
+            "query": "retrieval.is_fallback",
+            "aggregation": "rate",
+            "description": "Fallback rate (no good matches found)"
+          }
+        ],
+        "yAxis": {
+          "label": "Score / Rate",
+          "scale": "linear"
+        }
+      }
+    ]
+  }
+}
+

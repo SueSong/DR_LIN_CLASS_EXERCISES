@@ -1,0 +1,120 @@
+name: Prompt Version Check
+
+on:
+  pull_request:
+    paths:
+      - 'prompts/**/*.json'
+      - 'backend/app/prompt_loader.py'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'prompts/**/*.json'
+
+jobs:
+  check-prompt-versions:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for diff checking
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd exercise_11/backend
+          pip install pytest
+      
+      - name: Check for prompt changes without version bump
+        id: check_prompts
+        run: |
+          cd exercise_11
+          
+          # Get list of changed prompt files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "^prompts/.*\.json$" || true)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E "^prompts/.*\.json$" || true)
+          fi
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No prompt files changed"
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Changed prompt files:"
+          echo "$CHANGED_FILES"
+          
+          # Check each changed file
+          HAS_UNVERSIONED_CHANGES=false
+          
+          for file in $CHANGED_FILES; do
+            # Extract prompt ID and version from filename
+            filename=$(basename "$file")
+            if [[ $filename =~ ^(.+)_v([0-9]+)\.json$ ]]; then
+              prompt_id="${BASH_REMATCH[1]}"
+              version="${BASH_REMATCH[2]}"
+              echo "Checking $prompt_id v$version"
+              
+              # Check if this file exists in base branch
+              if [ "${{ github.event_name }}" == "pull_request" ]; then
+                BASE_REF="origin/${{ github.base_ref }}"
+              else
+                BASE_REF="HEAD~1"
+              fi
+              
+              if git show "$BASE_REF:$file" > /dev/null 2>&1; then
+                # File exists in base - check if template changed
+                BASE_TEMPLATE=$(git show "$BASE_REF:$file" | jq -r '.template // empty')
+                CURRENT_TEMPLATE=$(cat "$file" | jq -r '.template // empty')
+                
+                if [ "$BASE_TEMPLATE" != "$CURRENT_TEMPLATE" ]; then
+                  echo "❌ ERROR: Template changed in $file without creating new version!"
+                  echo "   You must create a new version file (e.g., ${prompt_id}_v$((version + 1)).json)"
+                  HAS_UNVERSIONED_CHANGES=true
+                fi
+                
+                # Check if version field matches filename
+                FILE_VERSION=$(cat "$file" | jq -r '.version // empty')
+                if [ "$FILE_VERSION" != "$version" ]; then
+                  echo "❌ ERROR: Version mismatch in $file: filename says v$version but JSON says v$FILE_VERSION"
+                  HAS_UNVERSIONED_CHANGES=true
+                fi
+              else
+                # New file - this is OK (new version)
+                echo "✅ New version file: $file"
+              fi
+            else
+              echo "⚠️  WARNING: File $file doesn't follow naming convention (should be {prompt_id}_v{version}.json)"
+            fi
+          done
+          
+          if [ "$HAS_UNVERSIONED_CHANGES" = true ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "has_errors=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "has_errors=false" >> $GITHUB_OUTPUT
+      
+      - name: Run prompt snapshot tests
+        if: steps.check_prompts.outputs.changed == 'true'
+        run: |
+          cd exercise_11/backend
+          python -m pytest tests/test_prompt_snapshots.py -v
+      
+      - name: Fail if version check failed
+        if: steps.check_prompts.outputs.has_errors == 'true'
+        run: |
+          echo "❌ CI failed: Prompt changes detected without proper version bump"
+          echo "Please create a new version file (e.g., child_coach_v2.json) instead of modifying existing versions"
+          exit 1
+

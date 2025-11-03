@@ -1,0 +1,88 @@
+{
+  "dashboard": {
+    "title": "Child Growth Assistant - Latency Dashboard",
+    "description": "Monitor latency metrics for guard, retrieval, and model operations",
+    "panels": [
+      {
+        "id": "guard_latency",
+        "title": "Guard Check Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "guard.latency_ms",
+            "aggregation": "p95",
+            "description": "95th percentile latency for safety guard checks"
+          },
+          {
+            "query": "guard.latency_ms",
+            "aggregation": "p50",
+            "description": "Median latency for safety guard checks"
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (ms)",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "retrieval_latency",
+        "title": "RAG Retrieval Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "retrieval.latency_ms",
+            "aggregation": "p95",
+            "description": "95th percentile latency for RAG retrieval operations"
+          },
+          {
+            "query": "retrieval.latency_ms",
+            "aggregation": "p50",
+            "description": "Median latency for RAG retrieval operations"
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (ms)",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "model_latency",
+        "title": "Model/Advice Generation Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "model.latency_ms",
+            "aggregation": "p95",
+            "description": "95th percentile latency for advice generation"
+          },
+          {
+            "query": "model.latency_ms",
+            "aggregation": "p50",
+            "description": "Median latency for advice generation"
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (ms)",
+          "scale": "linear"
+        }
+      },
+      {
+        "id": "end_to_end_latency",
+        "title": "End-to-End Request Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "http.server.duration",
+            "aggregation": "p95",
+            "description": "95th percentile end-to-end request latency"
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (ms)",
+          "scale": "linear"
+        }
+      }
+    ]
+  }
+}
+
