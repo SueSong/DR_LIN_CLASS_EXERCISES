@@ -61,9 +61,12 @@ BUFFER_SIZE_BYTES = 16000 * 2 * BUFFER_SIZE_SECONDS  # 160,000 bytes
 async def transcribe_audio_buffer(call_id: str, audio_data: bytes, speaker: str) -> str:
     """Transcribe audio buffer using Whisper API"""
     if not os.getenv("OPENAI_API_KEY"):
+        print("❌ OPENAI_API_KEY not set - transcription disabled")
         return None
     
     try:
+        print(f"🔄 Converting {len(audio_data)} bytes to WAV format...")
+        
         # Convert raw PCM to WAV format
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wav_file:
@@ -73,10 +76,14 @@ async def transcribe_audio_buffer(call_id: str, audio_data: bytes, speaker: str)
             wav_file.writeframes(audio_data)
         
         wav_buffer.seek(0)
+        wav_size = len(wav_buffer.getvalue())
+        print(f"✅ WAV created: {wav_size} bytes")
         
         # Call Whisper API
         import openai
-        response = await openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")).audio.transcriptions.create(
+        print(f"🌐 Calling OpenAI Whisper API...")
+        client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = await client.audio.transcriptions.create(
             model="whisper-1",
             file=("audio.wav", wav_buffer, "audio/wav"),
             language="en"
@@ -84,16 +91,22 @@ async def transcribe_audio_buffer(call_id: str, audio_data: bytes, speaker: str)
         
         text = response.text.strip()
         
+        if not text:
+            print("⚠️ Whisper returned empty transcription")
+            return None
+        
         # Update conversation state
         if get_state and text:
             state = get_state(call_id)
             state.add_transcript(speaker, text)
         
-        print(f"📝 Transcribed ({speaker}): {text[:50]}...")
+        print(f"✅ Transcribed ({speaker}): {text}")
         return text
         
     except Exception as e:
         print(f"❌ Transcription error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 async def transcribe_and_broadcast(
@@ -119,20 +132,38 @@ async def transcribe_and_broadcast(
             "timestamp": datetime.utcnow().isoformat()
         }
         
-        # Send to sender
+        # Send to sender (if still connected)
         try:
-            await sender_ws.send_json(transcript_msg)
-            print(f"📤 Sent transcript to sender ({speaker}): {text[:30]}...")
+            # Check if WebSocket is still open before sending
+            if hasattr(sender_ws, 'client_state') and sender_ws.client_state.name == 'DISCONNECTED':
+                print(f"⚠️ Sender WebSocket already closed, skipping transcript")
+            else:
+                await sender_ws.send_json(transcript_msg)
+                print(f"📤 Sent transcript to sender ({speaker}): {text[:30]}...")
         except Exception as e:
-            print(f"❌ Error sending to sender: {e}")
+            # WebSocket might be closed - this is okay
+            if "websocket.close" in str(e) or "response already completed" in str(e):
+                print(f"⚠️ Sender WebSocket closed, transcript not sent (this is normal if call ended)")
+            else:
+                print(f"❌ Error sending to sender: {e}")
         
-        # Send to partner
+        # Send to partner (if connected)
         if partner_call_id and partner_call_id in active_connections:
             try:
-                await active_connections[partner_call_id].send_json(transcript_msg)
-                print(f"📤 Sent transcript to partner: {text[:30]}...")
+                partner_ws = active_connections[partner_call_id]
+                # Check if WebSocket is still open
+                if hasattr(partner_ws, 'client_state') and partner_ws.client_state.name == 'DISCONNECTED':
+                    print(f"⚠️ Partner WebSocket already closed, removing from connections")
+                    del active_connections[partner_call_id]
+                else:
+                    await partner_ws.send_json(transcript_msg)
+                    print(f"📤 Sent transcript to partner: {text[:30]}...")
             except Exception as e:
-                print(f"❌ Error sending to partner: {e}")
+                # WebSocket might be closed - remove it
+                if "websocket.close" in str(e) or "response already completed" in str(e):
+                    print(f"⚠️ Partner WebSocket closed, removing from connections")
+                else:
+                    print(f"❌ Error sending to partner: {e}")
                 # Remove dead connection
                 if partner_call_id in active_connections:
                     del active_connections[partner_call_id]
@@ -203,6 +234,12 @@ async def websocket_call_endpoint(websocket: WebSocket, call_id: str):
             if "bytes" in data:
                 # Audio data received
                 audio_chunk = data["bytes"]
+                # Only log occasionally to reduce noise
+                if not hasattr(websocket, '_receive_count'):
+                    websocket._receive_count = 0
+                websocket._receive_count += 1
+                if websocket._receive_count % 50 == 0:
+                    print(f"📥 Received PCM chunk: {len(audio_chunk)} bytes from {call_id} ({websocket._receive_count} chunks)")
                 
                 # Route audio to partner (for real-time audio streaming)
                 from .calls import active_calls
@@ -210,13 +247,17 @@ async def websocket_call_endpoint(websocket: WebSocket, call_id: str):
                 speaker = "customer"  # Default
                 
                 # Find partner and determine speaker
+                
                 for active_call_id, call_info in active_calls.items():
-                    if call_id == call_info.get("agent_call_id"):
-                        partner_call_id = call_info.get("customer_call_id")
+                    agent_id = call_info.get("agent_call_id")
+                    customer_id = call_info.get("customer_call_id")
+                    
+                    if call_id == agent_id:
+                        partner_call_id = customer_id
                         speaker = "agent"
                         break
-                    elif call_id == call_info.get("customer_call_id"):
-                        partner_call_id = call_info.get("agent_call_id")
+                    elif call_id == customer_id:
+                        partner_call_id = agent_id
                         speaker = "customer"
                         break
                 
@@ -224,18 +265,42 @@ async def websocket_call_endpoint(websocket: WebSocket, call_id: str):
                 if partner_call_id and partner_call_id in active_connections:
                     try:
                         await active_connections[partner_call_id].send_bytes(audio_chunk)
+                        # Only log occasionally to reduce noise (every 50th chunk)
+                        if not hasattr(websocket, '_chunk_count'):
+                            websocket._chunk_count = 0
+                        websocket._chunk_count += 1
+                        if websocket._chunk_count % 50 == 0:
+                            print(f"📤 Forwarded audio: {len(audio_chunk)} bytes to {partner_call_id} ({websocket._chunk_count} chunks)")
                     except Exception as e:
-                        print(f"Error forwarding audio: {e}")
+                        print(f"❌ Error forwarding audio: {e}")
+                else:
+                    # Only log warnings occasionally
+                    if not hasattr(websocket, '_warning_count'):
+                        websocket._warning_count = 0
+                    websocket._warning_count += 1
+                    if websocket._warning_count % 20 == 0:
+                        if not partner_call_id:
+                            print(f"⚠️ No partner found for {call_id} (check if both are matched)")
+                        else:
+                            print(f"⚠️ Partner {partner_call_id} not connected")
                 
                 # Buffer audio for transcription
                 if call_id in audio_buffers:
                     audio_buffers[call_id].extend(audio_chunk)
+                    buffer_size = len(audio_buffers[call_id])
+                    buffer_seconds = buffer_size / (16000 * 2)  # 16kHz, 16-bit (2 bytes)
+                    
+                    # Log buffer status every 1 second (less verbose)
+                    if int(buffer_seconds) != int((buffer_size - len(audio_chunk)) / (16000 * 2)) and int(buffer_seconds) % 2 == 0:
+                        print(f"📊 Audio buffer: {buffer_size}/{BUFFER_SIZE_BYTES} bytes ({buffer_seconds:.1f}s / {BUFFER_SIZE_SECONDS}s)")
                     
                     # Check if buffer is full (5 seconds of audio)
-                    if len(audio_buffers[call_id]) >= BUFFER_SIZE_BYTES:
+                    if buffer_size >= BUFFER_SIZE_BYTES:
                         # Transcribe the buffered audio
                         audio_data = bytes(audio_buffers[call_id])
                         audio_buffers[call_id].clear()
+                        
+                        print(f"🎤 Buffer full! Transcribing {len(audio_data)} bytes ({speaker})...")
                         
                         # Transcribe in background to avoid blocking
                         asyncio.create_task(
@@ -352,6 +417,35 @@ async def handle_transcript(call_id: str, message: dict, websocket: WebSocket):
             print(f"📤 Routed message from {call_id} to {partner_call_id}")
         except Exception as e:
             print(f"Error routing message: {e}")
+    
+    # Generate AI suggestion for agent when customer speaks (manual transcript)
+    if speaker == "customer" and partner_call_id and partner_call_id in active_connections and ai_assistant:
+        try:
+            print(f"🤖 Generating AI suggestion for customer message: {text[:50]}...")
+            suggestion = await ai_assistant.generate_suggestion(
+                call_id=call_id,
+                customer_message=text
+            )
+            
+            suggestion_msg = {
+                "type": "ai_suggestion",
+                "suggestion": suggestion["suggestion"],
+                "reasoning": suggestion.get("reasoning", ""),
+                "action": suggestion.get("action", ""),
+                "confidence": suggestion["confidence"],
+                "timestamp": suggestion["timestamp"]
+            }
+            
+            if partner_call_id in active_connections:
+                try:
+                    await active_connections[partner_call_id].send_json(suggestion_msg)
+                    print(f"🤖 Sent AI suggestion to agent: {suggestion['suggestion'][:50]}... (confidence: {suggestion['confidence']})")
+                except Exception as send_error:
+                    print(f"❌ Error sending AI suggestion to agent: {send_error}")
+        except Exception as e:
+            print(f"❌ Error generating AI suggestion: {e}")
+            import traceback
+            traceback.print_exc()
 
 async def broadcast_to_call(call_id: str, message: dict):
     """Broadcast a message to a specific call's WebSocket"""

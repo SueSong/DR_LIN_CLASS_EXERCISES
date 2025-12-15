@@ -42,14 +42,18 @@ export default function CallsPage() {
     audioLevel,
     audioDevices,
     selectedDevice,
+    enableMonitoring,
     startAudio,
     stopAudio,
     toggleMute,
+    toggleMonitoring,
     changeDevice
   } = useAudioCall(ws, {
     onTranscript: (text, speaker) => {
       addMessage(speaker === 'agent' ? 'agent' : 'customer', `[Voice] ${text}`);
-    }
+    },
+    // Enable monitoring by default so you can hear your own voice
+    // Note: Monitoring may be disabled if headphones aren't detected (to prevent feedback)
   });
 
   // Check authentication
@@ -234,6 +238,23 @@ export default function CallsPage() {
     setInputMessage('');
   };
 
+  // Test function to trigger AI suggestion manually (for testing)
+  const testAISuggestion = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Simulate a customer message to trigger AI suggestion
+      ws.send(JSON.stringify({
+        type: 'transcript',
+        speaker: 'customer',
+        text: 'I need help with my order. It has not arrived yet and I am frustrated.',
+        timestamp: new Date().toISOString()
+      }));
+      addMessage('customer', 'I need help with my order. It has not arrived yet and I am frustrated.');
+      console.log('🧪 Test: Sent customer message to trigger AI suggestion');
+    } else {
+      alert('WebSocket not connected. Please start a call first.');
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -372,6 +393,21 @@ export default function CallsPage() {
                         </button>
                       )}
                       
+                      {/* Monitoring toggle (hear your own voice) */}
+                      {isAudioEnabled && (
+                        <button
+                          onClick={toggleMonitoring}
+                          className={`p-2 rounded-lg transition ${
+                            enableMonitoring 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          title={enableMonitoring ? 'Disable voice monitoring' : 'Enable voice monitoring (hear yourself)'}
+                        >
+                          <Volume2 className={`w-5 h-5 ${enableMonitoring ? '' : 'opacity-50'}`} />
+                        </button>
+                      )}
+                      
                       {/* Audio level indicator */}
                       {isAudioEnabled && (
                         <div className="flex items-center gap-2">
@@ -407,6 +443,9 @@ export default function CallsPage() {
                     <div className="mt-2 text-xs text-blue-600 flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                       {isMuted ? 'Microphone muted' : 'Listening... Speak to the customer'}
+                      {enableMonitoring && (
+                        <span className="ml-2 text-green-600">• Monitoring enabled (you can hear yourself)</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -508,14 +547,25 @@ export default function CallsPage() {
 
             {/* AI Suggestions */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span>🤖 AI Suggestions</span>
-                {aiSuggestions.length > 0 && (
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                    {aiSuggestions.length}
-                  </span>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span>🤖 AI Suggestions</span>
+                  {aiSuggestions.length > 0 && (
+                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+                      {aiSuggestions.length}
+                    </span>
+                  )}
+                </h3>
+                {inCall && (
+                  <button
+                    onClick={testAISuggestion}
+                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded transition"
+                    title="Test AI suggestion (simulates customer message)"
+                  >
+                    🧪 Test
+                  </button>
                 )}
-              </h3>
+              </div>
               {inCall ? (
                 aiSuggestions.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
