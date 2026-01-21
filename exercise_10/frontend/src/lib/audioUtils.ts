@@ -26,17 +26,90 @@ export async function getAudioDevices(): Promise<AudioDevice[]> {
 }
 
 /**
- * Request microphone access
+ * Detect if headphones are likely connected
+ * This is a heuristic - browsers don't directly expose headphone detection
  */
-export async function requestMicrophoneAccess(deviceId?: string): Promise<MediaStream | null> {
+async function detectHeadphones(): Promise<boolean> {
   try {
+    // Try to enumerate audio output devices
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+    
+    // If multiple audio outputs, user might have headphones
+    // This is not perfect, but helps
+    if (audioOutputs.length > 1) {
+      console.log('🎧 Multiple audio outputs detected - assuming headphones may be connected');
+      return true; // Assume headphones for safety
+    }
+    
+    // Default: assume speakers (safer for echo cancellation)
+    return false;
+  } catch (e) {
+    // If we can't detect, assume speakers (safer)
+    console.warn('⚠️ Could not detect audio outputs, assuming speakers');
+    return false;
+  }
+}
+
+/**
+ * Request microphone access
+ * Automatically enables echo cancellation when using speakers (no headphones)
+ */
+export async function requestMicrophoneAccess(deviceId?: string, enableEchoCancellation: boolean = false): Promise<MediaStream | null> {
+  try {
+    // If echo cancellation is disabled (for monitoring), check if headphones are connected
+    let shouldUseEchoCancellation = enableEchoCancellation;
+    
+    if (!enableEchoCancellation) {
+      // Monitoring is enabled - check if headphones are connected
+      const hasHeadphones = await detectHeadphones();
+      if (!hasHeadphones) {
+        // No headphones detected - enable echo cancellation to prevent feedback
+        console.warn('⚠️ No headphones detected - enabling echo cancellation to prevent feedback');
+        console.warn('⚠️ Monitoring disabled when using speakers to prevent audio feedback loops');
+        shouldUseEchoCancellation = true;
+      } else {
+        console.log('🎧 Headphones detected - echo cancellation disabled for monitoring');
+      }
+    }
+    
     const constraints: MediaStreamConstraints = {
-      audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+      audio: deviceId 
+        ? { 
+            deviceId: { exact: deviceId },
+            echoCancellation: shouldUseEchoCancellation,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        : {
+            echoCancellation: shouldUseEchoCancellation,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
       video: false
     };
     
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    console.log('🎤 Microphone access granted');
+    console.log(`🎤 Microphone access granted (echoCancellation: ${shouldUseEchoCancellation})`);
+    
+    // Log the actual constraints applied by the browser
+    if (stream.getAudioTracks().length > 0) {
+      const track = stream.getAudioTracks()[0];
+      const settings = track.getSettings();
+      console.log(`🎤 Actual audio settings:`, {
+        echoCancellation: settings.echoCancellation,
+        noiseSuppression: settings.noiseSuppression,
+        autoGainControl: settings.autoGainControl,
+        sampleRate: settings.sampleRate
+      });
+      
+      // Warn if echo cancellation is still enabled when monitoring is on
+      if (!enableEchoCancellation && settings.echoCancellation) {
+        console.warn('⚠️ Echo cancellation enabled to prevent feedback (using speakers)');
+        console.warn('💡 Tip: Use headphones to enable monitoring and hear yourself');
+      }
+    }
+    
     return stream;
   } catch (error: any) {
     console.error('Error accessing microphone:', error);
@@ -96,52 +169,185 @@ export class AudioRecorder {
   private audioContext: AudioContext | null = null;
   private processor: ScriptProcessorNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
+  private gainNode: GainNode | null = null;
   private onAudioChunk?: (chunk: ArrayBuffer) => void;
   private onTranscript?: (text: string) => void;
+  private enableMonitoring: boolean = false;
+  private monitoringVolume: number = 0.8; // 80% volume for monitoring (increased for better hearing)
+  private _chunkCount: number = 0;
   
   constructor(
     onAudioChunk?: (chunk: ArrayBuffer) => void,
-    onTranscript?: (text: string) => void
+    onTranscript?: (text: string) => void,
+    enableMonitoring: boolean = false
   ) {
     this.onAudioChunk = onAudioChunk;
     this.onTranscript = onTranscript;
+    this.enableMonitoring = enableMonitoring;
   }
   
   async start(deviceId?: string): Promise<boolean> {
-    this.stream = await requestMicrophoneAccess(deviceId);
+    // Reset chunk counter
+    this._chunkCount = 0;
+    
+    console.log(`🎙️ Starting recorder with monitoring: ${this.enableMonitoring}`);
+    
+    // Check if headphones are connected before deciding on echo cancellation
+    const hasHeadphones = await detectHeadphones();
+    
+    // If monitoring is enabled but no headphones, disable monitoring to prevent feedback
+    if (this.enableMonitoring && !hasHeadphones) {
+      console.warn('⚠️ Monitoring requested but no headphones detected');
+      console.warn('⚠️ Disabling monitoring to prevent audio feedback when using speakers');
+      this.enableMonitoring = false; // Temporarily disable for this session
+    }
+    
+    // Disable echo cancellation if monitoring is enabled AND headphones are connected
+    // Otherwise, always enable echo cancellation to prevent feedback
+    const shouldDisableEchoCancellation = this.enableMonitoring && hasHeadphones;
+    this.stream = await requestMicrophoneAccess(deviceId, !shouldDisableEchoCancellation);
     
     if (!this.stream) {
+      console.error('❌ Failed to get microphone access');
       return false;
     }
     
     try {
       // Create audio context with 16kHz sample rate (Whisper compatible)
       this.audioContext = new AudioContext({ sampleRate: 16000 });
+      
+      // Resume audio context if suspended (required by browsers)
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+        console.log('🔊 Audio context resumed');
+      }
+      
       this.source = this.audioContext.createMediaStreamSource(this.stream);
       
       // Create processor for raw audio (4096 samples at a time)
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
       
       this.processor.onaudioprocess = (event) => {
-        if (this.onAudioChunk) {
-          const audioData = event.inputBuffer.getChannelData(0);
-          
-          // Convert Float32Array to Int16Array (raw PCM format)
-          const int16Array = new Int16Array(audioData.length);
-          for (let i = 0; i < audioData.length; i++) {
-            // Clamp to prevent overflow
-            const s = Math.max(-1, Math.min(1, audioData[i]));
-            int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        this._chunkCount++;
+        
+        if (!this.onAudioChunk) {
+          if (this._chunkCount <= 3) {
+            console.warn('⚠️ onAudioChunk callback not set!');
           }
-          
-          // Send raw PCM data
+          return;
+        }
+        
+        const audioData = event.inputBuffer.getChannelData(0);
+        
+        // Check if audio is actually being captured (not silent)
+        let hasAudio = false;
+        let maxAmplitude = 0;
+        for (let i = 0; i < audioData.length; i++) {
+          const abs = Math.abs(audioData[i]);
+          maxAmplitude = Math.max(maxAmplitude, abs);
+          if (abs > 0.01) {
+            hasAudio = true;
+          }
+        }
+        
+        // Convert Float32Array to Int16Array (raw PCM format)
+        const int16Array = new Int16Array(audioData.length);
+        for (let i = 0; i < audioData.length; i++) {
+          // Clamp to prevent overflow
+          const s = Math.max(-1, Math.min(1, audioData[i]));
+          int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        
+        // Log first few chunks to verify audio is being captured
+        if (this._chunkCount <= 5) {
+          console.log(`🎤 Audio processor chunk ${this._chunkCount}: ${int16Array.length} samples, hasAudio: ${hasAudio}, maxAmp: ${maxAmplitude.toFixed(4)}`);
+        }
+        
+        // Send raw PCM data
+        try {
           this.onAudioChunk(int16Array.buffer);
+        } catch (error) {
+          console.error('❌ Error in onAudioChunk callback:', error);
         }
       };
       
-      // Connect the audio pipeline
+      // Connect the audio pipeline for recording
+      // IMPORTANT: processor must be connected to destination to work!
       this.source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
+      this.processor.connect(this.audioContext.destination); // This is required for ScriptProcessorNode to work!
+      
+      console.log('🔗 Audio pipeline connected: source -> processor -> destination');
+      console.log(`🔍 Checking monitoring: enableMonitoring = ${this.enableMonitoring}`);
+      
+      // If monitoring is enabled, also connect to speakers (with volume control)
+      if (this.enableMonitoring) {
+        console.log('✅ Monitoring is ENABLED - setting up audio feedback...');
+        // Create a separate gain node for monitoring with higher volume
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.gain.value = this.monitoringVolume;
+        
+        // Create a splitter to send audio to both processor and monitoring
+        // Since we can't use ChannelSplitterNode for this, we'll connect source to both
+        // The processor is already connected, so we connect monitoring separately
+        this.source.connect(this.gainNode);
+        this.gainNode.connect(this.audioContext.destination);
+        
+        console.log(`🔊 Audio monitoring enabled at ${(this.monitoringVolume * 100).toFixed(0)}% volume (you can hear yourself)`);
+        console.log(`🔊 Monitoring gain node value: ${this.gainNode.gain.value}`);
+        console.log(`🔊 Audio context state: ${this.audioContext.state}`);
+        console.log(`🔊 Monitoring connection: source -> gainNode(${this.gainNode.gain.value}) -> destination`);
+        
+        // Verify monitoring connection
+        if (this.gainNode.numberOfInputs > 0 && this.gainNode.numberOfOutputs > 0) {
+          console.log('✅ Monitoring gain node is properly connected');
+        } else {
+          console.warn('⚠️ Monitoring gain node connection issue');
+        }
+        
+        // Test: Play a short beep to verify audio output works
+        try {
+          const oscillator = this.audioContext.createOscillator();
+          const testGain = this.audioContext.createGain();
+          oscillator.connect(testGain);
+          testGain.connect(this.audioContext.destination);
+          oscillator.frequency.value = 440; // A4 note
+          testGain.gain.value = 0.1; // Low volume test
+          oscillator.start();
+          oscillator.stop(this.audioContext.currentTime + 0.1);
+          console.log('🔊 Test beep played - if you heard it, audio output is working');
+        } catch (e) {
+          console.warn('Could not play test beep:', e);
+        }
+        
+        // Additional test: Play monitoring audio after a delay to verify it's working
+        setTimeout(() => {
+          if (this.gainNode && this.audioContext && this.audioContext.state === 'running') {
+            console.log('🔊 Monitoring should be active now - speak and you should hear yourself');
+            console.log(`🔊 If you still can't hear yourself:`);
+            console.log(`   1. Check your system volume`);
+            console.log(`   2. Check if you heard the test beep`);
+            console.log(`   3. Try speaking louder`);
+            console.log(`   4. Try using speakers instead of headphones`);
+            
+            // Test monitoring by temporarily increasing volume
+            const originalGain = this.gainNode.gain.value;
+            this.gainNode.gain.value = 1.0; // 100% for test
+            console.log(`🔊 Temporarily increased monitoring to 100% for testing...`);
+            setTimeout(() => {
+              if (this.gainNode) {
+                this.gainNode.gain.value = originalGain;
+                console.log(`🔊 Monitoring volume restored to ${(originalGain * 100).toFixed(0)}%`);
+              }
+            }, 2000);
+          }
+        }, 1000);
+      } else {
+        console.log('🔇 Audio monitoring disabled');
+      }
+      
+      // Verify stream has active tracks
+      const tracks = this.stream.getAudioTracks();
+      console.log(`🎤 Audio tracks: ${tracks.length}, enabled: ${tracks.map(t => t.enabled).join(',')}, readyState: ${tracks.map(t => t.readyState).join(',')}`);
       
       console.log('🎙️ Recording started (Raw PCM, 16kHz)');
       return true;
@@ -152,10 +358,22 @@ export class AudioRecorder {
     }
   }
   
+  setMonitoringVolume(volume: number) {
+    this.monitoringVolume = Math.max(0, Math.min(1, volume)); // Clamp between 0 and 1
+    if (this.gainNode) {
+      this.gainNode.gain.value = this.monitoringVolume;
+    }
+  }
+  
   stop() {
     if (this.processor) {
       this.processor.disconnect();
       this.processor = null;
+    }
+    
+    if (this.gainNode) {
+      this.gainNode.disconnect();
+      this.gainNode = null;
     }
     
     if (this.source) {
